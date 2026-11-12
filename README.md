@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Nhận diện ký tự Braille — Grade 1 Latin
 
 Dự án bài tập lớn môn **Nhập môn Trí tuệ nhân tạo**, nhận diện **một dòng chữ Braille** bằng xử lý ảnh cổ điển và nhận dạng mẫu dựa trên luật. Các bước được tổ chức đơn giản để sinh viên năm nhất có thể đọc, giải thích và thực nghiệm.
@@ -230,3 +231,4 @@ Lần kiểm tra ngày 12/11/2026: **171 test vượt qua**, gồm hồi quy cá
 - Nhánh nhận diện ảnh Braille chưa giải mã khoảng trắng, chữ số, dấu báo viết hoa, dấu câu, chữ viết tắt hoặc tiếng Việt có dấu. Nhánh OCR mới hỗ trợ tạo ô trống giữa các từ sau khi người dùng kiểm tra văn bản.
 - Chưa đánh giá trên ảnh giấy Braille dập nổi, ảnh chụp thực tế hoặc dữ liệu lớp học. OCR chữ viết tay mới có smoke test một ảnh IAM crop từ, chưa có benchmark trên bộ ảnh dòng chữ thực tế của nhóm.
 
+=======
