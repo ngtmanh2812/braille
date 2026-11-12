@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bảng viết tay</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, sans-serif; color: #202735; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2px 0 6px; background: transparent; }
+    .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .pen-control { display: flex; align-items: center; gap: 7px; font-size: 14px; }
+    input[type="range"] { width: 115px; accent-color: #2563eb; }
+    output { min-width: 36px; font-variant-numeric: tabular-nums; }
+    button { border: 1px solid #c9d1dc; border-radius: 7px; background: #fff; color: #202735;
+      padding: 8px 11px; font: inherit; font-size: 14px; cursor: pointer; }
+    button:hover:not(:disabled) { border-color: #2563eb; background: #eff6ff; }
+    button:disabled { cursor: not-allowed; opacity: .48; }
+    button:focus-visible, input:focus-visible, canvas:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
+    .drawing-area { width: 100%; max-width: 1000px; border: 2px solid #aeb9c8; border-radius: 8px;
+      overflow: hidden; background: #fff; }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 1000 / 260; background: #fff;
+      touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+    canvas[aria-disabled="true"] { cursor: not-allowed; }
+    .bottom { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px;
+      max-width: 1000px; margin-top: 7px; font-size: 13px; color: #536174; }
+    #notice { min-height: 0; font-size: 13px; color: #9a3412; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar" role="toolbar" aria-label="Công cụ viết tay">
+    <label class="pen-control" for="pen-size">Độ dày nét
+      <input id="pen-size" type="range" min="3" max="18" value="6" step="1" aria-label="Độ dày nét bút">
+      <output id="pen-value" for="pen-size">6 px</output>
+    </label>
+    <button id="undo" type="button" disabled>Hoàn tác nét cuối</button>
+    <button id="clear" type="button" disabled>Xóa hết</button>
+  </div>
+  <div class="drawing-area">
+    <canvas id="canvas" width="1000" height="260" tabindex="0" role="img"
+      aria-label="Bảng viết tay: dùng chuột hoặc chạm để viết một dòng chữ Latin" aria-disabled="false">
+      Trình duyệt cần hỗ trợ HTML Canvas để viết tay trực tiếp.
+    </canvas>
+  </div>
+  <div class="bottom">
+    <span>Viết một từ hoặc một dòng bằng nét đen trên nền trắng.</span>
+    <span id="status" role="status" aria-live="polite">Số nét: 0</span>
+  </div>
+  <div id="notice" role="status"></div>
+  <script>
+    (() => {
+      "use strict";
+      const WIDTH = 1000;
+      const HEIGHT = 260;
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const pen = document.getElementById("pen-size");
+      const penValue = document.getElementById("pen-value");
+      const undo = document.getElementById("undo");
+      const clear = document.getElementById("clear");
+      const status = document.getElementById("status");
+      const notice = document.getElementById("notice");
+      let strokes = [];
+      let currentStroke = null;
+      let activePointer = null;
+      let disabled = false;
+      let initialized = false;
+      let editRevision = 0;
+      let restoredImage = null;
+      let restoredStrokeCount = 0;
+      let frameRequest = 0;
+      let lastFrameHeight = -1;
+
+      function send(type, data = {}) {
+        window.parent.postMessage({ isStreamlitMessage: true, type, ...data }, "*");
+      }
+
+      function resizeFrame() {
+        if (frameRequest) return;
+        frameRequest = requestAnimationFrame(() => {
+          frameRequest = 0;
+          const height = Math.ceil(document.body.scrollHeight + 4);
+          if (height !== lastFrameHeight) {
+            lastFrameHeight = height;
+            send("streamlit:setFrameHeight", { height });
+          }
+        });
+      }
+
+      function updateControls() {
+        const count = restoredStrokeCount + strokes.length;
+        pen.disabled = disabled || activePointer !== null;
+        undo.disabled = disabled || activePointer !== null || count === 0;
+        undo.textContent = restoredImage && !strokes.length && restoredStrokeCount > 0
+          ? "Hoàn tác phần đã khôi phục" : "Hoàn tác nét cuối";
+        clear.disabled = disabled || activePointer !== null || count === 0;
+        canvas.setAttribute("aria-disabled", String(disabled));
+        status.textContent = activePointer === null ? `Số nét: ${count}` : "Đang viết…";
+        resizeFrame();
+      }
+
+      function fillWhite() {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      }
+
+      function drawStroke(stroke) {
+        if (!stroke || !stroke.points.length) return;
+        ctx.strokeStyle = "#000000";
+        ctx.fillStyle = "#000000";
+        ctx.lineWidth = stroke.size;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        const first = stroke.points[0];
+        if (stroke.points.length === 1) {
+          ctx.beginPath();
+          ctx.arc(first.x, first.y, stroke.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+          return;
+        }
+        ctx.beginPath();
+        ctx.moveTo(first.x, first.y);
+        for (let i = 1; i < stroke.points.length; i++) {
+          ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+        }
+        ctx.stroke();
+      }
+
+      function redraw() {
+        fillWhite();
+        if (restoredImage) ctx.drawImage(restoredImage, 0, 0, WIDTH, HEIGHT);
+        for (const stroke of strokes) drawStroke(stroke);
+        drawStroke(currentStroke);
+        updateControls();
+      }
+
+      function publish() {
+        send("streamlit:setComponentValue", {
+          dataType: "json",
+          value: {
+            image: canvas.toDataURL("image/png"),
+            width: WIDTH,
+            height: HEIGHT,
+            stroke_count: restoredStrokeCount + strokes.length,
+            version: 1
+          }
+        });
+      }
+
+      function pointFrom(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: Math.max(0, Math.min(WIDTH, (event.clientX - rect.left) * WIDTH / rect.width)),
+          y: Math.max(0, Math.min(HEIGHT, (event.clientY - rect.top) * HEIGHT / rect.height))
+        };
+      }
+
+      function addPoint(event) {
+        if (!currentStroke) return;
+        const point = pointFrom(event);
+        const previous = currentStroke.points[currentStroke.points.length - 1];
+        if (previous && Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y) < .2) return;
+        currentStroke.points.push(point);
+        if (!previous) {
+          drawStroke(currentStroke);
+        } else {
+          ctx.beginPath();
+          ctx.strokeStyle = "#000000";
+          ctx.lineWidth = currentStroke.size;
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+          ctx.moveTo(previous.x, previous.y);
+          ctx.lineTo(point.x, point.y);
+          ctx.stroke();
+        }
+      }
+
+      function finishStroke(event) {
+        if (activePointer === null || (event && event.pointerId !== activePointer)) return;
+        const pointer = activePointer;
+        if (event && event.type === "pointerup") addPoint(event);
+        if (currentStroke && currentStroke.points.length) strokes.push(currentStroke);
+        activePointer = null;
+        currentStroke = null;
+        if (canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
+        updateControls();
+        publish();
+      }
+
+      canvas.addEventListener("pointerdown", event => {
+        if (disabled || activePointer !== null || (event.pointerType === "mouse" && event.button !== 0)) return;
+        event.preventDefault();
+        editRevision++;
+        notice.textContent = "";
+        canvas.focus({ preventScroll: true });
+        activePointer = event.pointerId;
+        currentStroke = { size: Number(pen.value), points: [] };
+        canvas.setPointerCapture(event.pointerId);
+        addPoint(event);
+        updateControls();
+      });
+
+      canvas.addEventListener("pointermove", event => {
+        if (event.pointerId !== activePointer || !currentStroke) return;
+        event.preventDefault();
+        const events = event.getCoalescedEvents ? event.getCoalescedEvents() : [];
+        for (const sample of events.length ? events : [event]) addPoint(sample);
+      });
+      canvas.addEventListener("pointerup", finishStroke);
+      canvas.addEventListener("pointercancel", finishStroke);
+      canvas.addEventListener("lostpointercapture", finishStroke);
+
+      pen.addEventListener("input", () => { penValue.textContent = `${pen.value} px`; });
+      undo.addEventListener("click", () => {
+        if (disabled || activePointer !== null) return;
+        editRevision++;
+        if (strokes.length) strokes.pop();
+        else { restoredImage = null; restoredStrokeCount = 0; }
+        redraw();
+        publish();
+      });
+      clear.addEventListener("click", () => {
+        if (disabled || activePointer !== null) return;
+        editRevision++;
+        strokes = [];
+        restoredImage = null;
+        restoredStrokeCount = 0;
+        notice.textContent = "";
+        redraw();
+        publish();
+      });
+      canvas.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !undo.disabled) {
+          event.preventDefault();
+          undo.click();
+        }
+      });
+
+      function restoreOnce(args) {
+        const png = args.initial_png;
+        if (typeof png !== "string" || !png.startsWith("data:image/png;base64,") || png.length > 3000000) return;
+        const revision = editRevision;
+        const image = new Image();
+        image.onload = () => {
+          // A user may already have drawn while the snapshot was loading.
+          if (editRevision !== revision || activePointer !== null) return;
+          restoredImage = image;
+          fillWhite();
+          ctx.drawImage(image, 0, 0, WIDTH, HEIGHT);
+          const pixels = ctx.getImageData(0, 0, WIDTH, HEIGHT).data;
+          let ink = false;
+          for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i] < 245 || pixels[i + 1] < 245 || pixels[i + 2] < 245) { ink = true; break; }
+          }
+          const count = args.initial_stroke_count;
+          restoredStrokeCount = ink ? (Number.isInteger(count) && count > 0 ? count : 1) : 0;
+          updateControls();
+          // Restoring an existing Python value must not trigger a rerun loop.
+        };
+        image.onerror = () => {
+          if (editRevision !== revision) return;
+          notice.textContent = "Không khôi phục được nét vẽ trước. Bạn có thể viết lại trên bảng.";
+          resizeFrame();
+        };
+        image.src = png;
+      }
+
+      window.addEventListener("message", event => {
+        if (event.source !== window.parent || !event.data || event.data.type !== "streamlit:render") return;
+        const args = event.data.args || {};
+        const nextDisabled = Boolean(event.data.disabled || args.disabled);
+        if (nextDisabled && activePointer !== null) finishStroke();
+        disabled = nextDisabled;
+        if (!initialized) {
+          initialized = true;
+          restoreOnce(args);
+        }
+        updateControls();
+      });
+
+      fillWhite();
+      updateControls();
+      if (typeof ResizeObserver !== "undefined") new ResizeObserver(resizeFrame).observe(document.body);
+      window.addEventListener("resize", resizeFrame);
+      send("streamlit:componentReady", { apiVersion: 1 });
+      resizeFrame();
+    })();
+  </script>
+</body>
+</html>

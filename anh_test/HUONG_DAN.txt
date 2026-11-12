@@ -1,0 +1,24 @@
+ẢNH BRAILLE MẪU ĐỂ THỬ ỨNG DỤNG
+
+Bộ ảnh gồm 80 ảnh PNG: 20 chuỗi chữ, mỗi chuỗi có 4 phiên bản.
+- Tệp kết thúc bằng _00.png là ảnh chuẩn, không thêm nhiễu hoặc xoay.
+- Các tệp _01.png, _02.png, _03.png có biến đổi độ sáng, nhiễu hoặc góc xoay nhẹ.
+- Văn bản đúng nằm trong tên ảnh và cột text của labels.csv.
+
+Cách dùng:
+1. Mở ứng dụng Streamlit trên trình duyệt.
+2. Nhấn Browse files và chọn một ảnh trong thư mục test hoặc development.
+3. Bắt đầu với threshold otsu và bật Gaussian blur.
+4. Đối chiếu kết quả với tên ảnh.
+
+Ảnh dễ thử trước:
+- test/000_abc_00.png: nhãn đúng là abc.
+- development/001_hello_00.png: nhãn đúng là hello.
+- development/002_world_00.png: nhãn đúng là world.
+
+development dùng để thử và điều chỉnh tham số; test dành cho đánh giá cuối cùng.
+Các phiên bản của cùng một chuỗi nguồn được giữ trong cùng một tập.
+Nếu đã dùng test để điều chỉnh tham số, cần một tập chưa xem khác để đánh giá cuối cùng.
+
+Đây là ảnh chấm đen trên nền trắng được sinh bằng chương trình,
+không đại diện cho ảnh giấy Braille dập nổi thật.

@@ -1,0 +1,9 @@
+file,reference_text,dataset,split,row_index,source
+iam_test_0000.jpg,"assuredness "" Bella Bella Marie "" ( Parlophone ) , a lively song that changes tempo mid-way .",Teklia/IAM-line,test,0,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0001.jpg,"I don't think he will storm the charts with this one , but it 's a good start .",Teklia/IAM-line,test,1,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0002.jpg,"CHRIS CHARLES , 39 , who lives in Stockton-on-Tees , is an accountant .",Teklia/IAM-line,test,2,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0003.jpg,Become a success with a disc and hey presto ! You 're a star ... . Rolly sings with,Teklia/IAM-line,test,3,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0004.jpg,"Tolch , as he is known in Tin Pan Alley , likes songs with a month in the title . He wrote",Teklia/IAM-line,test,4,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0005.jpg,""" My September Love , "" the big David Whitfield hit of 1956 .",Teklia/IAM-line,test,5,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0006.jpg,He is also a director of a couple of garages . And he finds time as well to be a lyric,Teklia/IAM-line,test,6,https://huggingface.co/datasets/Teklia/IAM-line
+iam_test_0007.jpg,"writer . He writes with Tolchard Evans , composer of "" Lady of Spain "" and other big hits .",Teklia/IAM-line,test,7,https://huggingface.co/datasets/Teklia/IAM-line

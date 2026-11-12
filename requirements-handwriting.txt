@@ -1,0 +1,5 @@
+# Optional OCR branch; install CPU PyTorch first as described in README.md.
+torch==2.8.0
+transformers==4.57.1
+sentencepiece>=0.2,<0.3
+Pillow>=10

@@ -1,0 +1,5 @@
+{
+  "revision": "28fe12cdf7816b5dde94e22051b2ec8dc74267b7",
+  "origin": "IAM example from Hugging Face Transformers fixtures, not a local training dataset",
+  "url": "https://huggingface.co/datasets/hf-internal-testing/fixtures_ocr/resolve/28fe12cdf7816b5dde94e22051b2ec8dc74267b7/iam_picture.jpeg"
+}

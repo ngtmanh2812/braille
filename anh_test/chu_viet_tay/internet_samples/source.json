@@ -1,0 +1,6 @@
+{
+  "dataset": "Teklia/IAM-line",
+  "api": "https://datasets-server.huggingface.co/rows?dataset=Teklia%2FIAM-line&config=default&split=test&offset=0&length=8",
+  "purpose": "manual demonstration; not an independent benchmark for pretrained TrOCR",
+  "images": 8
+}
